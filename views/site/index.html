@@ -1,0 +1,26 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>aa</title>
+</head>
+<body>
+	<?= $name ?>说<h1>Hello World!</h1>
+</body>
+<script>
+    let req = new XMLHttpRequest();
+    req.open('GET', 'index.php?r=site/index&type=json');
+    req.send();
+    req.onreadystatechange = function() {
+    	if (req.readyState == 4 && req.status == 200) {
+    		let response = req.responseText;
+    		if (req.getResponseHeader('content-type')==='application/json') {
+    			response = JSON.parse(response);
+    		}
+    		let h1 = document.createElement('h1');
+    		h1.innerHTML = response.red;
+    		h1.style = 'color:red';
+    		document.body.append(h1);
+    	}
+}
+</script>
+</html>

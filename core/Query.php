@@ -4,25 +4,27 @@ use PDO;
 
 class Query
 {
+    use core\UtilsTrait;
+    
 	private $_db;
 
 	private $_columns = '*';
 	private $_table = '';
-	private $_innerJoin = [];
-	private $_leftJoin = [];
-	private $_rightJoin = [];
-	private $_where = [];
-	private $_andWhere = [];
-	private $_orWhere = [];
+	private $_join = [];
+	private $_condtion = [];
 	private $_group = [];
 	private $_order = [];
 	private $_offset = 0;
 	private $_limit = 0;
+	
+	const ENUM_CONDITION_WHERE = 1;//where
+	const ENUM_CONDITION_AND = 2;//andWhere
+	const ENUM_CONDITON_OR = 3;//orWhere
 
 	public function __construct($db = null)
 	{
 		if ($db !== null) {
-			$this->_db = $ddb;
+			$this->_db = $db;
 		}
 	}
 
@@ -50,25 +52,25 @@ class Query
 
 	public function innerJoin(string $table, string $onCondition)
 	{
-		$this->_innerJoin[$table] = $onCondition;
+		$this->_join[] = "INNER JOIN $table ON $onCondition";
 		return $this;
 	}
 
 	public function leftJoin(string $table, string $onCondition)
 	{
-		$this->_leftJoin[$table] = $onCondition;
+	    $this->_join[] = "LEFT JOIN $table ON $onCondition";
 		return $this;
 	}
 
 	public function rightJoin(string $table, string $onCondition)
 	{
-		$this->_rightJoin[$table] = $onCondition;
+	    $this->_join[] = "RIGHT JOIN $table ON $onCondition";
 		return $this;
 	}
 
 	public function where($where)
 	{
-		$this->_where = $where;
+	    $this->_condtion[] = is_array($where) ? self::conditionToString($where) : $where;
 		return $this;
 	}
 
@@ -140,7 +142,7 @@ class Query
 			$arr = [];
 			foreach ($select as $key => $value) {
 				if (is_string($key)) {
-					$arr[] = $value . ' AS ' . $key;
+					$arr[] = '`' . $value . '` AS `' . $key . '`';
 				}
 			}
 			if ($arr) {
@@ -149,4 +151,50 @@ class Query
 		}
 		return $base . $str;
 	}
+	
+	private static function handleFrom(string $tableName, string $alias = '') : string
+	{
+	    return '`' . $tableName . '`' . ($alias !== '' ? ' AS `' . $alias . '`': '');
+	}
+	
+	private static function handleJoin(array $joinArr) : string
+	{
+	    $returnStr = '';
+	    foreach ($joinArr as $item) {
+	        $returnStr .= self::$joinMap[$item['type']] . $item['table'] . ' ON ' . $item['condition'];
+	    }
+	    return  $returnStr;
+	}
+	
+	private static function handleConditon() : string
+	{}
+	
+	private static function conditionToString(array $condition) : string
+	{
+	    $returnStr = '';
+	    if (is_array($condition)) {
+	        $joiner = ['AND', 'OR', 'LIKE', 'BETWEEN', '>', '>=', '<', '<='];
+	        $first = '';
+	        $temp = [];
+	        if (isset($condition[0]) && in_array($condition[0], $joiner)) {
+	            $first = array_shift($condition);
+	        }
+	        foreach ($condition as $key => $value) {
+	            if (self::isEmpty($value)) {
+	                continue;
+	            }
+	            if (is_int($key) && is_array($value)) {
+	                $temp[] = self::conditionToString($value);
+	            } else if (is_int($key) && is_string($value)) {
+	                $temp[] = $value;
+	            }else if (is_string($key) && is_array($value)) {
+	                $temp[] = '`' . $key . '` IN (' . implode(',', $value) . ')';
+	            } else {
+	                $temp[] = '`' . $key . '` = ';
+	            }
+	        }
+	    }
+	}
+	
+	
 }
